@@ -1,5 +1,5 @@
 module.exports = {
-  DATABASE: `mongodb+srv://Nensi:m7xXY2BAJn2w3mvj@cluster0.jxaegxy.mongodb.net/demoPk`,
+  DATABASE:  `mongodb+srv://vaghasiyarushit534:Rushit7265@cluster0.50vnkfy.mongodb.net/game`,
   PORT: 5091,
   loweWinAmount: 30,
 };
