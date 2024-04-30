@@ -20,7 +20,7 @@ const AviatorGameHistorySchema = new mongoose.Schema(
     xPercent: { type: Number, default: 1 },
     updatedAdminCoin: { type: Number, default: 0 },
     winnerCoinMinus: { type: Number, default: 0 },
-    totalAdd: { type: Number, default: 0 },
+    totalAddDiamond: { type: Number, default: 0 },
   },
   { timestamps: true, versionKey: false }
 );

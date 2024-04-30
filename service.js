@@ -2,10 +2,15 @@ const config = require("./config");
 const AviatorAdminCoin = require("./models/aviatorAdminCoin");
 const GameHistory = require("./models/gameHistory");
 const LastHistory = require("./models/lastHistory");
-
+const {
+  userData,
+  percentageUserExistArray,
+  percentageFakeExistArray,
+} = require("./data");
 const User = require("./models/user");
 
 const Wallet = require("./models/wallet");
+const mongoose = require("mongoose");
 
 exports.addUserBets = (diamond, id, image, name) => {
   const index = userBetTotalG.findIndex((element) => {
@@ -23,13 +28,13 @@ exports.addUserBets = (diamond, id, image, name) => {
       win: 0,
       xPercent: 0,
       history: false,
+      isFake: false,
       date: new Date().toLocaleString("en-US", {
         timeZone: "Asia/Kolkata",
       }),
     });
   }
-  console.log("bet ====== userBetTotalG ", userBetTotalG);
-
+  console.log("userBetTotalG", userBetTotalG);
   totalBetG += diamond;
   io.emit("getAllBet", userBetTotalG);
 };
@@ -40,14 +45,14 @@ exports.cancelUserBets = async (diamond, id) => {
     return false;
   });
   if (index != -1) {
-    userBetTotalG.splice(findBetIndex, 1);
+    userBetTotalG.splice(index, 1);
     const user = await User.updateOne(
       { _id: id },
-      { $inc: { diamond: 10 } },
+      { $inc: { diamond: diamond } },
       { $new: true }
     );
     io.emit("getAllBet", userBetTotalG);
-    totalBetG -= diamond;
+    totalBetG = totalBetG <= 0 ? 0 : (totalBetG -= diamond);
     return user;
   }
 };
@@ -74,29 +79,40 @@ exports.generateShuffledArray = () => {
 };
 
 exports.winLogic = async () => {
-  let highOrLow = highOrLowWinResultG.shift();
-  if (!highOrLow) {
-    highOrLow = "low";
-    highOrLowWinResultG = this.generateShuffledArray();
-    console.log("highOrLowWinResultG", highOrLowWinResultG);
-  }
+  filteredRealUserG = userBetTotalG
+    .filter((item) => item.isFake === false)
+    .map((item) => {
+      return item;
+    });
 
-  if (highOrLow == "low") {
-    const lowCountArrayGIndex =
-      Math.floor(Math.random() * lowCountArrayG.length) + 0;
-    const yCrashIndexValue = lowCountArrayG[lowCountArrayGIndex];
-    yCrashIndexValue;
+  console.log("filteredRealUser :", filteredRealUserG.length);
 
-    const coin = aviatorAdminCoin.coin * 0.4;
-    YCrash = coin / totalBetG;
-    YCrash = YCrash < 0 ? 1.01 : YCrash;
+  if (filteredRealUserG.length == 0) {
+    YCrash = percentageFakeWinExist.shift();
+    if (percentageFakeWinExist.length == 0) {
+      percentageFakeWinExist = this.generateFakeWinArray();
+    }
+    console.log("YCrash return ============ ", YCrash);
     return YCrash;
   }
 
+  data = percentageUserWinExist.shift();
+  if (percentageUserWinExist.length == 0) {
+    percentageUserWinExist = this.generateUserWinArray();
+  }
   const aviatorAdminCoin = await AviatorAdminCoin.findOne();
-  const coin = aviatorAdminCoin.coin * 0.4;
-  YCrash = coin / totalBetG;
-  YCrash = YCrash < 0 ? 1.01 : YCrash;
+
+  let coinResult = parseInt(totalBetG * data);
+
+  if (aviatorAdminCoin.coin * 0.6 <= coinResult) {
+    data = parseFloat((Math.random() * (1.25 - 1.0) + 1.0).toFixed(2));
+    coinResult = parseInt(totalBetG * data);
+  }
+  if (aviatorAdminCoin.coin * 0.6 <= coinResult) {
+    data = 1.0;
+  }
+  YCrash = data;
+  return YCrash;
 };
 
 exports.updateUser = async (obj) => {
@@ -168,12 +184,13 @@ exports.addHistory = async (userId, totalCoin, win) => {
 exports.allUserHistory = async () => {
   console.log("allUserHistory==================================");
 
-  for (let index = 0; index < forAllUserHistoryArrayG.length; index++) {
-    if (forAllUserHistoryArrayG[index].history) return;
-    const outGoing = 0 - parseInt(forAllUserHistoryArrayG[index].Bet);
+  for (let index = 0; index < filteredRealUserG.length; index++) {
+    if (filteredRealUserG[index].history || filteredRealUserG[index].isFake)
+      return;
+    const outGoing = 0 - parseInt(filteredRealUserG[index].Bet);
     if (!isNaN(outGoing)) {
       history = {
-        userId: forAllUserHistoryArrayG[index]?.userId,
+        userId: filteredRealUserG[index]?.userId,
         isIncome: false,
         type: 17,
         diamond: Math.abs(outGoing),
@@ -193,26 +210,22 @@ exports.allUserHistory = async () => {
 };
 
 exports.addGameHistory = async (data) => {
-  let updatedCoinPlus = totalBetG - totalWinnerCoinG * YCrash;
-  console.log("updatedCoinPlus", updatedCoinPlus);
+  let updatedCoin = totalBetG - totalWinnerCoinG;
+  console.log("updatedCoinPlus", updatedCoin);
   const [adminCoin, lastHistory] = await Promise.all([
-    AviatorAdminCoin.findOne(),
-    // AviatorAdminCoin.updateOne(
-    //   {},
-    //   { $inc: { coin: 10 } },
-    //   {
-    //     new: true,
-    //   }
-    // ),
+    AviatorAdminCoin.findOneAndUpdate(
+      {},
+      { $inc: { coin: updatedCoin } },
+      { new: true }
+    ),
     LastHistory.findOne(),
   ]);
 
-  const totalWinCoin = forAllUserHistoryArrayG.reduce(
+  const totalWinCoin = filteredRealUserG.reduce(
     (acc, currentValue) => acc + currentValue.win,
     0
   );
-  console.log("forAllUserHistoryArrayG ", forAllUserHistoryArrayG);
-  const extractedValues = forAllUserHistoryArrayG.map((item) => ({
+  const extractedValues = filteredRealUserG.map((item) => ({
     userId: item.userId,
     Bet: item.Bet,
     win: item.win,
@@ -221,8 +234,7 @@ exports.addGameHistory = async (data) => {
     date: item.date,
   }));
 
-  if (forAllUserHistoryArrayG.length != 0) {
-    console.log("forAllUserHistoryArrayG gameHistory add ");
+  if (filteredRealUserG.length != 0) {
     await GameHistory({
       totalAddDiamond: totalBetG, // total add coin in game
       winnerCoinMinus: -parseInt(totalWinCoin),
@@ -235,12 +247,11 @@ exports.addGameHistory = async (data) => {
     }).save();
   }
   lastHistory.number.unshift(YCrash);
-  if (lastHistory.number.length > 50) {
+  if (lastHistory.number.length > 20) {
     lastHistory.number.pop();
   }
   await lastHistory.save();
   lastHistoryG = lastHistory;
-  console.log("lastHistory", lastHistory);
   io.emit("lastHistory", lastHistoryG);
 };
 
@@ -285,4 +296,87 @@ exports.getMyBetHistory = async (_id) => {
     },
   ]);
   return getMyBet;
+};
+
+exports.addFakeRandom = async () => {
+  let counter = parseInt(Math.random() * (20 - 5) + 5);
+
+  let id = new mongoose.Types.ObjectId("65e17cb928093b3c022218ba");
+  let countStart = 0;
+  let setTimeOutTime = 50;
+  const intervalFunction = () => {
+    let diamond = parseInt(Math.random() * (8000 - 100) + 100);
+    let xPercent = parseFloat((Math.random() * (4.51 - 1.0) + 1.0).toFixed(2));
+    let setTimeOutTime = parseFloat(Math.random() * (100 - 10) + 10);
+
+    let win = diamond * xPercent;
+    win = Math.round(win + 0.5);
+
+    const element = userData[countStart];
+    userBetTotalG.push({
+      userId: id,
+      image: element.image,
+      Bet: diamond,
+      name: element.name,
+      win: win,
+      xPercent: xPercent,
+      history: false,
+      isFake: true,
+      date: new Date().toLocaleString("en-US", {
+        timeZone: "Asia/Kolkata",
+      }),
+    });
+    io.emit("getAllBet", userBetTotalG);
+    countStart++;
+    if (countStart === counter) {
+      clearInterval(intervalId);
+    } else {
+      intervalId = setTimeout(intervalFunction, setTimeOutTime);
+    }
+  };
+  intervalId = setTimeout(intervalFunction, setTimeOutTime);
+};
+
+function getRandomNumber(min, max) {
+  return Math.random() * (max - min) + min;
+}
+
+exports.generateUserWinArray = () => {
+  percentageUserExistArray.forEach(({ percentage, yDataStart, yDataLimit }) => {
+    const itemCount = Math.round((percentage / 100) * 100);
+    for (let i = 0; i < itemCount; i++) {
+      percentageUserWinExist.push(
+        Number(getRandomNumber(yDataStart, yDataLimit).toFixed(2))
+      );
+    }
+  });
+  for (let i = percentageUserWinExist.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [percentageUserWinExist[i], percentageUserWinExist[j]] = [
+      percentageUserWinExist[j],
+      percentageUserWinExist[i],
+    ];
+  }
+  console.log("percentageUserWinExist: ", percentageUserWinExist);
+  return percentageUserWinExist;
+};
+
+exports.generateFakeWinArray = () => {
+  percentageFakeExistArray.forEach(({ percentage, yDataStart, yDataLimit }) => {
+    const itemCount = Math.round((percentage / 100) * 100);
+    for (let i = 0; i < itemCount; i++) {
+      percentageFakeWinExist.push(
+        Number(getRandomNumber(yDataStart, yDataLimit).toFixed(2))
+      );
+    }
+  });
+  for (let i = percentageFakeWinExist.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [percentageFakeWinExist[i], percentageFakeWinExist[j]] = [
+      percentageFakeWinExist[j],
+      percentageFakeWinExist[i],
+    ];
+  }
+  console.log("percentageFakeWinExist: ", percentageFakeWinExist);
+  return percentageFakeWinExist;
 };

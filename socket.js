@@ -9,21 +9,26 @@ const {
   addGameHistory,
   allUserHistory,
   getMyBetHistory,
+  winLogic,
+  addFakeRandom,
+  generateUserWinArray,
+  generateFakeWinArray,
 } = require("./service");
 
 let time = -12;
 global.totalBetG = 0;
 global.userBetTotalG = [];
-global.highOrLowWinResultG = [];
-global.lowCountArrayG = [
-  1.01, 1.02, 1.03, 1.04, 1.05, 1.06, 1.07, 1.08, 1.09, 1, 1,
-];
+global.filteredRealUserG = [];
 global.totalWinnerCoinG = 0;
-global.adminStartingCoin = { add: false, coin: 0 };
 global.timeForUpdateG = 10;
 global.date0Now = null;
-global.YCrash = 1.56;
-global.forAllUserHistoryArrayG = [];
+global.YCrash = 1.02;
+global.percentageUserWinExist = [];
+global.percentageFakeWinExist = [];
+
+generateUserWinArray();
+generateFakeWinArray();
+let timeO;
 
 //Game Loop For Timer
 setInterval(() => {
@@ -58,8 +63,8 @@ io.on("connect", async (socket) => {
       if (!aviatorUser) {
         aviatorUser = await AviatorUser({
           userId: user?._id,
-          AutoCollectCoin: 1.1,
-          AutoCollect: false,
+          AutoCashOutCoin: 1.1,
+          AutoCashOut: false,
         }).save();
       }
 
@@ -71,7 +76,7 @@ io.on("connect", async (socket) => {
         } else {
           socket.emit("refresh", false);
         }
-        console.log("userBetTotalG", userBetTotalG);
+
         socket.emit("getAllBet", userBetTotalG);
         socket.emit("lastHistory", lastHistoryG);
         socket.emit("YCrash", YCrash);
@@ -92,17 +97,11 @@ io.on("connect", async (socket) => {
       user.diamond -= data.diamond;
       await user.save();
       socket.emit("user", user);
-      if (!adminStartingCoin.add) {
-        const adminCoin = await AviatorAdminCoin.findOne();
-        adminStartingCoin.add = true;
-        adminStartingCoin.coin = adminCoin;
-        adminCoin.coin += data.diamond;
-        await adminCoin.save();
-      } else {
-        await AviatorAdminCoin.updateOne({}, { $inc: { coin: data.diamond } });
-      }
+
     } else {
+      console.log("coinLess ======");
       socket.emit("user", user); // @ todo not enough coin
+      socket.emit("coinLess", true); // @ todo not enough coin
     }
   });
 
@@ -112,26 +111,16 @@ io.on("connect", async (socket) => {
     const resultUser = await cancelUserBets(data.diamond, data?.userId);
 
     socket.emit("user", resultUser);
-
-    if (!adminStartingCoin.add) {
-      const adminCoin = await AviatorAdminCoin.findOne();
-      adminStartingCoin.add = true;
-      adminStartingCoin.coin = adminCoin;
-      adminCoin.coin += data.diamond;
-      await adminCoin.save();
-    } else {
-      await AviatorAdminCoin.updateOne({}, { $inc: { coin: data.diamond } });
-    }
   });
 
   socket.on("cashOut", async (obj) => {
-    console.log("cashOut ", obj, " globalRoom : ", globalRoom);
-    console.log("userBetTotalG", userBetTotalG);
+    console.log("cashOut ====", obj);
     const index = userBetTotalG.findIndex((element) => {
       if (element?.userId == obj?.userId) return true;
       return false;
     });
     if (index != -1) {
+      console.log("cashOut Exist====");
       const finalUser = await cashOutUpdateUser(
         obj?.userId,
         index,
@@ -151,15 +140,16 @@ io.on("connect", async (socket) => {
     }
   });
 
-  socket.on("autoCollect", async (obj) => {
-    console.log("autoCollect", obj);
+  socket.on("autoCashOut", async (obj) => {
+    console.log("autoCashOut", obj);
     await AviatorUser.updateOne(
       {
-        userId: globalRoom,
+        userId: obj.userId,
       },
       {
-        AutoCollectCoin: obj.AutoCollectCoin,
-        AutoCollect: obj.AutoCollect,
+        AutoCashOutCoin: obj.AutoCashOutCoin,
+        AutoCashOut: obj.AutoCashOut,
+        AutoBet: obj.AutoBet,
       }
     );
   });
@@ -172,34 +162,40 @@ io.on("connect", async (socket) => {
   });
 });
 
-let timeO = (YCrash - 1).toFixed(2);
-timeO = timeO * 8;
-timeO += 2;
-console.log("timeTo0", timeO);
-if (timeO < 2) {
-  timeO = 2;
-}
-
 const updateTime = async () => {
   console.log("time", time);
   io.emit("time", time);
   time++;
-  if (time == -3) {
-    io.emit("YCrash", YCrash);
-  }
+  if (time == -2) {
+    YCrash = await winLogic();
 
+    console.log("result ====================================", YCrash);
+    io.emit("YCrash", YCrash);
+    timeO = (YCrash - 1).toFixed(2);
+    timeO = timeO * 8;
+    timeO += 2;
+    console.log("timeTo0", timeO);
+    if (timeO < 2) {
+      timeO = 2;
+    }
+  }
+  if (time == -7) {
+    userBetTotalG = [];
+    io.emit("getAllBet", userBetTotalG);
+  }
+  if (time == -6) {
+    addFakeRandom();
+  }
   if (time == 0) {
-    date0Now = Date.now() + 100;
+    date0Now = Date.now() + 300;
     console.log(date0Now);
   }
   if (time == parseInt(timeO)) {
-    forAllUserHistoryArrayG = userBetTotalG;
     addGameHistory();
     allUserHistory();
     time = -13;
-    userBetTotalG = [];
     date0Now = null;
     totalBetG = 0;
-    
+    totalWinnerCoinG = 0;
   }
 };
