@@ -12,6 +12,8 @@ const { createAviatorAdminCoin, createLastHistory } = require("./service");
 
 app.use(express.json());
 app.use(cors());
+app.use(express.static(path.join(__dirname, "public")));
+app.use("/storage", express.static(path.join(__dirname, "storage")));
 require("./socket");
 
 createAviatorAdminCoin();
