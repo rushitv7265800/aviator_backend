@@ -93,7 +93,7 @@ exports.winLogic = async () => {
       percentageFakeWinExist = this.generateFakeWinArray();
     }
     console.log("YCrash return ============ ", YCrash);
-    return 3.25;
+    return YCrash;
   }
 
   data = percentageUserWinExist.shift();
