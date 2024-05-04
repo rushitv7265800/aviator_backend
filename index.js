@@ -6,20 +6,23 @@ const config = require("./config");
 const app = express();
 const http = require("http");
 const server = http.createServer(app);
-var usersRouter = require("./routes/users");
 global.io = require("socket.io")(server);
 global.lastHistoryG = [];
 const { createAviatorAdminCoin, createLastHistory } = require("./service");
 
-app.use("/user", usersRouter);
 app.use(express.json());
 app.use(cors());
-app.use(express.static(path.join(__dirname, "public")));
-app.use("/storage", express.static(path.join(__dirname, "storage")));
 require("./socket");
 
 createAviatorAdminCoin();
 createLastHistory();
+
+
+app.use(express.static(path.join(__dirname, "public")));
+
+app.get("/*", function (req, res) {
+  res.status(200).sendFile(path.join(__dirname, "public", "index.html"));
+});
 
 mongoose
   .connect(config.DATABASE)
