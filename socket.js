@@ -49,10 +49,9 @@ io.on("connect", async (socket) => {
   socket.join(globalRoom);
 
   socket.on("startGame", async (obj) => {
-    console.log("------------start game listen---------------", obj);
     if (user) {
       console.log("------------user in game start-----", user?.diamond);
-      console.log("------------lastHistoryG-----", lastHistoryG);
+      // console.log("------------lastHistoryG-----", lastHistoryG);
 
       socket.emit("start", user);
 
@@ -81,6 +80,14 @@ io.on("connect", async (socket) => {
         socket.emit("lastHistory", lastHistoryG);
         socket.emit("YCrash", YCrash);
         socket.emit("aviatorUser", aviatorUser);
+
+        let refreshAddBet = userBetTotalG
+          .filter((item) => item.userId === user?._id.toString())
+          .map((item) => {
+            return item;
+          });
+        // console.log("refreshAddBet ====", refreshAddBet);
+        socket.emit("refreshAddBet", refreshAddBet);
       }, 100);
     } else {
       socket.emit("start", null);
@@ -88,7 +95,7 @@ io.on("connect", async (socket) => {
   });
 
   socket.on("addBet", async (data) => {
-    console.log("bet ======", data, globalRoom);
+    // console.log("bet ======", data, globalRoom);
     const user = await User.findById(data.userId);
     if (user.diamond >= data.diamond) {
       console.log("bet ====== Inner ", data);
@@ -97,7 +104,6 @@ io.on("connect", async (socket) => {
       user.diamond -= data.diamond;
       await user.save();
       socket.emit("user", user);
-
     } else {
       console.log("coinLess ======");
       socket.emit("user", user); // @ todo not enough coin
@@ -106,7 +112,7 @@ io.on("connect", async (socket) => {
   });
 
   socket.on("cancelBet", async (data) => {
-    console.log("cancelBet ======", data, globalRoom);
+    // console.log("cancelBet ======", data, globalRoom);
 
     const resultUser = await cancelUserBets(data.diamond, data?.userId);
 
@@ -114,7 +120,7 @@ io.on("connect", async (socket) => {
   });
 
   socket.on("cashOut", async (obj) => {
-    console.log("cashOut ====", obj);
+    // console.log("cashOut ====", obj);
     const index = userBetTotalG.findIndex((element) => {
       if (element?.userId == obj?.userId) return true;
       return false;
@@ -135,13 +141,13 @@ io.on("connect", async (socket) => {
         history: userBetTotalG[index].history,
         date: userBetTotalG[index].date,
       });
-      console.log("getMyBetHistoryG: ", getMyBetHistoryG);
+      console.log("getMyBet ====", getMyBetHistoryG?.length);
       socket.emit("getMyBet", getMyBetHistoryG);
     }
   });
 
   socket.on("autoCashOut", async (obj) => {
-    console.log("autoCashOut", obj);
+    // console.log("autoCashOut", obj);
     await AviatorUser.updateOne(
       {
         userId: obj.userId,
@@ -155,29 +161,35 @@ io.on("connect", async (socket) => {
   });
 
   socket.on("getMyBet", async (data) => {
-    console.log("getMyBet: ", data);
-
     getMyBetHistoryG = await getMyBetHistory(data.userId);
+    console.log("getMyBet :::::: ", getMyBetHistoryG?.length);
     socket.emit("getMyBet", getMyBetHistoryG);
   });
+  // socket.on("disconnect", async () => {
+  //   console.log("socket disconnect ============= ", globalRoom);
+  // });
 });
-
+console.log(Date.now());
 const updateTime = async () => {
   console.log("time", time);
-  io.emit("time", time);
   time++;
+  io.emit("time", time);
   if (time == -2) {
     YCrash = await winLogic();
 
-    console.log("result ====================================", YCrash);
+    console.log(
+      "result ==================================== =  YCrash =============",
+      YCrash
+    );
     io.emit("YCrash", YCrash);
-    timeO = (YCrash - 1).toFixed(2);
+    timeO = (YCrash - 0.7).toFixed(2);
     timeO = timeO * 8;
     timeO += 2;
-    console.log("timeTo0", timeO);
     if (timeO < 2) {
       timeO = 2;
     }
+    timeO = Math.round(timeO + 0.5);
+    console.log("timeTo0 =============================================", timeO);
   }
   if (time == -7) {
     userBetTotalG = [];
@@ -188,9 +200,9 @@ const updateTime = async () => {
   }
   if (time == 0) {
     date0Now = Date.now() + 300;
-    console.log(date0Now);
+    console.log("date0Now: ", date0Now);
   }
-  if (time == parseInt(timeO)) {
+  if (time == timeO) {
     addGameHistory();
     allUserHistory();
     time = -13;
