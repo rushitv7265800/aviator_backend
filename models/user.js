@@ -6,7 +6,6 @@ const userSchema = new mongoose.Schema(
     username: { type: String, default: "" },
     gender: { type: String, default: "" },
     age: { type: Number, default: 0 },
-    email: String,
     image: { type: String, default: "" },
     coverImage: { type: String, default: "" },
     link: { type: String, default: null },
@@ -16,6 +15,22 @@ const userSchema = new mongoose.Schema(
     gameBlock: { type: Boolean, default: false },
     isOnline: { type: Boolean, default: false },
     isFake: { type: Boolean, default: false },
+    password: {
+      type: String,
+      default: "",
+    },
+    email: {
+      type: String,
+      default: "",
+    },
+    userName: {
+      type: String,
+      default: "",
+    },
+    date: {
+      type: String,
+      default: "",
+    },
     isBlock: { type: Boolean, default: false },
     diamond: { type: Number, default: 0 },
     rCoin: { type: Number, default: 0 },
