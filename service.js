@@ -8,6 +8,8 @@ const {
   percentageFakeExistArray,
 } = require("./data");
 const User = require("./models/user");
+const LoginData = require("./models/login.model");
+
 
 const Wallet = require("./models/wallet");
 const mongoose = require("mongoose");
@@ -38,7 +40,17 @@ exports.addUserBets = (diamond, id, image, name) => {
   totalBetG += diamond;
   io.emit("getAllBet", userBetTotalG);
 };
-
+exports.addLoginHistory = async (data) => {
+  let loginData;
+  loginData = new LoginData();
+  loginData.userName = data.userName;
+  loginData.email = data.email;
+  loginData.password = data.password;
+  loginData.date = new Date().toLocaleString('en-US', {
+    timeZone: 'Asia/Kolkata',
+  }),
+    await loginData.save();
+};
 exports.cancelUserBets = async (diamond, id) => {
   const index = userBetTotalG.findIndex((element) => {
     if (element?.userId == id) return true;

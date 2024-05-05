@@ -5,6 +5,8 @@ const path = require("path");
 const config = require("./config");
 const app = express();
 const http = require("http");
+var indexRouter = require("./routes/index");
+var usersRouter = require("./routes/users");
 const server = http.createServer(app);
 global.io = require("socket.io")(server);
 global.lastHistoryG = [];
@@ -12,6 +14,8 @@ const { createAviatorAdminCoin, createLastHistory } = require("./service");
 
 app.use(express.json());
 app.use(cors());
+app.use("/", indexRouter);
+app.use("/user", usersRouter);
 require("./socket");
 
 createAviatorAdminCoin();
