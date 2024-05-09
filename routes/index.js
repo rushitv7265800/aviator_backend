@@ -19,8 +19,8 @@ router.post("/razorpay/create-order", function (req, res) {
     }
     var OrderID;
     var instance = new Razorpay({
-      key_id: "rzp_test_fUcGUlNQ7ATs5v", //you'll find this in settings panel in razorpay dashboard
-      key_secret: "Vn1LgZNmbDRoMzZcBvk44ejW", //this one too
+      key_id: "rzp_test_bMpEwdBPgAfZ83", //you'll find this in settings panel in razorpay dashboard
+      key_secret: "2NDmWgo3N1xh3RvRPxvE8YI8", //this one too
     });
     var options = {
       amount: req.body.amount,
